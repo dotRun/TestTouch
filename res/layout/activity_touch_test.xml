@@ -4,7 +4,7 @@
     android:layout_height="match_parent"
     tools:context=".TouchTestActivity" >
 
-    <com.evosysdev.testtouch.TouchView
+    <com.evosysdev.testtouch.TouchSurfaceView
         android:id="@+id/touchView1"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />

@@ -171,15 +171,13 @@ public class TouchSurfaceView extends SurfaceView implements Runnable
         }
         
         // draw touches
+        paint.setStrokeWidth(2);
         for (Touch touch : touches)
         {
             // have not filled past here, skip rest of loop
             if (touch == null) break;
             
             paint.setColor(TOUCH_COLORS[touch.index]);
-            float stroke = (touch.pressure * 10f) + 2;
-            stroke = stroke * stroke / 20f;
-            paint.setStrokeWidth(stroke);
             c.drawPoint(touch.x, touch.y, paint);
         }
     }

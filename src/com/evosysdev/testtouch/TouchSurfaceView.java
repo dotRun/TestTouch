@@ -78,6 +78,7 @@ public class TouchSurfaceView extends SurfaceView implements Runnable
         // only start drawing if we aren't already
         if (drawing == null)
         {
+            updated = true;
             drawing = new Thread(this, TAG);
             drawing.start();
         }

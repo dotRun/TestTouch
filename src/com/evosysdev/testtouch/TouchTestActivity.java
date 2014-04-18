@@ -1,10 +1,12 @@
 package com.evosysdev.testtouch;
 
 import android.os.Bundle;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Toast;
@@ -21,24 +23,29 @@ public class TouchTestActivity extends Activity
     private static final String FULLSCREEN_MESSAGE = "FULLSCREEN";
     
     private TouchSurfaceView touchView; // the surface view tracking touches
+    private boolean fullscreen;
     
+    @SuppressLint("NewApi")
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
         
-        // check for fullscreen flag
-        if (this.getIntent().getBooleanExtra(FULLSCREEN_MESSAGE, false))
-        {
-            requestWindowFeature(Window.FEATURE_NO_TITLE);
-            getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
-                WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        }
+        fullscreen = false;
         
         // set content
         setContentView(R.layout.activity_touch_test);
         
-        touchView = (TouchSurfaceView) this.findViewById(R.id.touchView1); // grab touch surface
+        // grab touch surface
+        touchView = (TouchSurfaceView) this.findViewById(R.id.touchView1);
+        
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN)
+        {
+            touchView.setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+        }
     }
     
     /**
@@ -49,6 +56,9 @@ public class TouchTestActivity extends Activity
     {
         super.onResume();
         touchView.resume();
+        
+        if (fullscreen)
+            hideSystemUI();
     }
     
     /**
@@ -77,18 +87,79 @@ public class TouchTestActivity extends Activity
         {
             case R.id.action_fullscreen:
                 // hint at how to exit fullscreen
-                Toast.makeText(this, "Press back to return...", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Press back to return...",
+                        Toast.LENGTH_SHORT).show();
                 
                 // start in fullscreen mode
-                Intent fullscreenIntent = new Intent(this, TouchTestActivity.class);
-                fullscreenIntent.putExtra(FULLSCREEN_MESSAGE, true);
-                startActivity(fullscreenIntent);
+                hideSystemUI();
+                fullscreen = true;
                 return true;
             case R.id.action_reset:
                 touchView.reset(); // reset touches
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
+        }
+    }
+    
+    @Override
+    public void onBackPressed()
+    {
+        if (fullscreen)
+        {
+            fullscreen = false;
+            showSystemUI();
+        }
+        else super.onBackPressed();
+    }
+    
+    @SuppressLint("NewApi")
+    private void hideSystemUI()
+    {
+        // immersive mode for those that support it
+        int currentAPI = android.os.Build.VERSION.SDK_INT;
+        if (currentAPI >= android.os.Build.VERSION_CODES.KITKAT)
+        {
+            touchView.setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+        }
+        // no immersive support
+        else if (currentAPI >= android.os.Build.VERSION_CODES.JELLY_BEAN)
+        {
+            touchView.setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_FULLSCREEN);
+        }
+        // legacy
+        else
+        {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        }
+    }
+    
+    @SuppressLint("NewApi")
+    private void showSystemUI()
+    {
+        int currentAPI = android.os.Build.VERSION.SDK_INT;
+        if (currentAPI >= android.os.Build.VERSION_CODES.JELLY_BEAN)
+        {
+            touchView.setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+        }
+        // legacy
+        else
+        {
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
         }
     }
 }

@@ -3,6 +3,7 @@
 
     <string name="app_name">Test Touch</string>
     <string name="action_fullscreen">Fullscreen</string>
+    <string name="action_showlegend">Legend</string>
     <string name="action_reset">Clear</string>
 
 </resources>

@@ -21,13 +21,6 @@ import android.view.SurfaceView;
  */
 public class TouchSurfaceView extends SurfaceView implements Runnable
 {
-    // colors to use in touches
-    private static final int[] TOUCH_COLORS =
-    {
-            Color.WHITE, Color.BLUE + 0x222200, Color.GREEN + 0x220022,
-            Color.YELLOW + 0x22, Color.RED + 0x2222
-    };
-    
     private static final int HISTORY_LEN, FRAME_TIME;
     private static final String TAG;
     
@@ -39,7 +32,9 @@ public class TouchSurfaceView extends SurfaceView implements Runnable
     }
     
     private Touch[] touches; // array of recorded touches
-    private int i; // current touch index
+    private int i, // current touch index
+            colors[]; // array of colors for drawing
+    private boolean showLegend; // should we display color legend
     private volatile boolean updated; // have there been touches since last draw
     
     private Thread drawing; // drawing thread
@@ -60,6 +55,12 @@ public class TouchSurfaceView extends SurfaceView implements Runnable
         
         // create touch history array
         touches = new Touch[HISTORY_LEN];
+        
+        // init colors array(need non-null)
+        colors = new int[0];
+        
+        // default legend to on
+        showLegend = true;
         
         // create paint
         paint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -120,19 +121,23 @@ public class TouchSurfaceView extends SurfaceView implements Runnable
         {
             while (!drawing.isInterrupted())
             {
-                time = SystemClock.currentThreadTimeMillis(); // frame start time
+                time = SystemClock.currentThreadTimeMillis(); // frame start
+                                                              // time
                 
-                // ensure we have a valid surface to draw to and avoid unnecessary
+                // ensure we have a valid surface to draw to and avoid
+                // unnecessary
                 // draws by only drawing if something has changed
                 if (surface.getSurface().isValid() && updated)
                 {
                     c = surface.lockCanvas(); // grab canvas
                     drawTouches(c); // draw
                     updated = false;
-                    surface.unlockCanvasAndPost(c); // inform we are done with canvas
+                    surface.unlockCanvasAndPost(c); // inform we are done with
+                                                    // canvas
                 }
                 
-                took = SystemClock.currentThreadTimeMillis() - time; // length of frame
+                took = SystemClock.currentThreadTimeMillis() - time; // length
+                                                                     // of frame
                 
                 // took less time than expected for frame, sleep remaining time
                 if (took < FRAME_TIME) Thread.sleep(FRAME_TIME - took);
@@ -152,23 +157,26 @@ public class TouchSurfaceView extends SurfaceView implements Runnable
      * @param c
      *            canvas to draw on
      */
-    public void drawTouches(Canvas c)
+    private void drawTouches(Canvas c)
     {
         // clear canvas
         c.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
         
-        // draw finger labels
-        int labelsTop = c.getHeight() - 30;
-        int labelsBot = c.getHeight() - 10;
-        float labelSpacing = 35 + (paint.getTextSize() * paint.getTextScaleX() * 3);
-        paint.setStrokeWidth(0);
-        for (int i = 0; i < TOUCH_COLORS.length; i++)
+        // draw color legend
+        if (showLegend)
         {
-            float spacing = i * labelSpacing;
-            paint.setColor(TOUCH_COLORS[i]);
-            c.drawRect(10 + spacing, labelsTop, 30 + spacing, labelsBot, paint);
-            paint.setColor(Color.WHITE);
-            c.drawText("F " + (i + 1), 35 + spacing, labelsBot, paint);
+            float labelHeight = 35;
+            float labelsTop = (c.getHeight() / 2)
+                    - ((labelHeight * colors.length) / 2);
+            paint.setStrokeWidth(0);
+            for (int i = 0; i < colors.length; i++)
+            {
+                float y = labelsTop + i * labelHeight;
+                paint.setColor(colors[i]);
+                c.drawRect(10, y, 40, y + 30, paint);
+                paint.setColor(Color.WHITE);
+                c.drawText("F" + (i + 1), 45, y + 30, paint);
+            }
         }
         
         // draw touches
@@ -178,7 +186,7 @@ public class TouchSurfaceView extends SurfaceView implements Runnable
             // have not filled past here, skip rest of loop
             if (touch == null) break;
             
-            paint.setColor(TOUCH_COLORS[touch.index]);
+            paint.setColor(colors[touch.index]);
             c.drawPoint(touch.x, touch.y, paint);
         }
     }
@@ -191,8 +199,8 @@ public class TouchSurfaceView extends SurfaceView implements Runnable
     {
         int pointers = event.getPointerCount();
         
-        // only handle up to 5 pointers
-        if (pointers > 5) pointers = 5;
+        // update pointers/colors for number of touches
+        updatePointerColors(pointers);
         
         // we only care about move events and currently handling up to 5 fingers
         if (event.getActionMasked() == MotionEvent.ACTION_MOVE)
@@ -203,13 +211,16 @@ public class TouchSurfaceView extends SurfaceView implements Runnable
                 // get and add history since last touch event
                 for (int g = 0; g < event.getHistorySize(); g++)
                 {
-                    addTouch(pointer, event.getHistoricalX(pointer, g),
+                    addTouch(pointer,
+                            event.getHistoricalX(pointer, g),
                             event.getHistoricalY(pointer, g),
                             event.getHistoricalPressure(pointer, g));
                 }
                 
                 // add pointer touch event
-                addTouch(pointer, event.getX(pointer), event.getY(pointer),
+                addTouch(pointer,
+                        event.getX(pointer),
+                        event.getY(pointer),
                         event.getPressure(pointer));
             }
         }
@@ -219,8 +230,38 @@ public class TouchSurfaceView extends SurfaceView implements Runnable
     }
     
     /**
+     * Update colors when we have more pointers
+     * 
+     * @param pointers
+     *            number of pointers on event
+     */
+    private void updatePointerColors(int pointers)
+    {
+        if (colors.length < pointers)
+        {
+            colors = new int[pointers];
+            
+            // hsv "heatmap" colors for touches
+            float[] hsv =
+            {
+                    0, 1, 1
+            };
+            float step = 300f / pointers;
+            
+            // create "heatmap"
+            for (int i = 0; i < pointers; i++)
+            {
+                hsv[0] = 60 + step * i;
+                colors[i] = Color.HSVToColor(hsv);
+            }
+        }
+    }
+    
+    /**
      * Record a touch
      * 
+     * @param index
+     *            touch index(pointer)
      * @param x
      *            x coord of touch
      * @param y
@@ -228,7 +269,7 @@ public class TouchSurfaceView extends SurfaceView implements Runnable
      * @param pressure
      *            pressure of touch
      */
-    public void addTouch(int index, float x, float y, float pressure)
+    private void addTouch(int index, float x, float y, float pressure)
     {
         // add touch and increment index
         touches[i++] = new Touch(index, x, y, pressure);
@@ -244,7 +285,20 @@ public class TouchSurfaceView extends SurfaceView implements Runnable
     {
         touches = new Touch[HISTORY_LEN]; // reset touches
         i = 0; // reset index
+        colors = new int[0]; // reset colors
         updated = true; // inform we have updated
+    }
+    
+    /**
+     * Set if we should be showing the legend or not
+     * 
+     * @param showLegend
+     *            should legend be shown
+     */
+    public void showLegend(boolean showLegend)
+    {
+        this.showLegend = showLegend;
+        updated = true;
     }
     
     /**
@@ -262,7 +316,7 @@ public class TouchSurfaceView extends SurfaceView implements Runnable
          * Construct touch data
          * 
          * @param index
-         *            index of touch
+         *            index of touch(pointer)
          * @param x
          *            x coord of touch
          * @param y

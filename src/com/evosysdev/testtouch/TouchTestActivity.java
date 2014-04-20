@@ -17,9 +17,6 @@ import android.widget.Toast;
  */
 public class TouchTestActivity extends Activity
 {
-    // message to send intent for fullscreen
-    private static final String FULLSCREEN_MESSAGE = "FULLSCREEN";
-    
     private TouchSurfaceView touchView; // the surface view tracking touches
     private boolean fullscreen;
     
